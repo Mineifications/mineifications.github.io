@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nextbot Generator by Mineifications</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+
+  <h2>Nextbot Generator by Mineifications</h2>
+  <hr>
+
+  <div>
+    <label><b>Addon Title:</b></label><br>
+    <input type="text" id="addonTitle" value="My Custom Nextbots">
+  </div>
+  <br>
+
+  <form id="botForm" onsubmit="return false;">
+    <div id="cardList"></div>
+
+    <p>
+      <button type="button" id="addBtn">+ Add Nextbot</button>
+    </p>
+    <hr>
+    <p>
+      <button type="button" id="exportBtn">Export Addon (.mcaddon)</button>
+    </p>
+  </form>
+
+<script>
+  // Quick counter for DOM element IDs
+  let totalBots = 0;
+
+  // DOM refs
+  const cardContainer = document.getElementById('cardList');
+  const addBtn = document.getElementById('addBtn');
+  const exportBtn = document.getElementById('exportBtn');
+
+  // Add initial card
+  window.addEventListener('DOMContentLoaded', () => {
+    spawnBotBlock("nextbot", "My Nextbot");
+  });
+
+  addBtn.addEventListener('click', () => spawnBotBlock());
+  exportBtn.addEventListener('click', compileMcAddon);
+
+  function spawnBotBlock(defaultSub = "", defaultName = "") {
+    totalBots++;
+    const idx = totalBots;
+
+    const box = document.createElement('fieldset');
+    box.id = `botBox_${idx}`;
+    box.className = 'bot-entry';
+
+    box.innerHTML = `
+      <legend><b>Nextbot #${idx}</b></legend>
+      <p style="text-align: right;">
+        <button type="button" onclick="dropCard(${idx})">Delete</button>
+      </p>
+
+      <p>
+        <label><b>Nextbot Identifier:</b></label><br>
+        <input type="text" class="bot-subid" id="subId_${idx}" value="${defaultSub || 'nextbot_' + idx}" required><br>
+        <small>Full Identifier: <span id="preview_${idx}">nextbot:${defaultSub || 'nextbot_' + idx}</span></small>
+      </p>
+
+      <p>
+        <label><b>Display Name:</b></label><br>
+        <input type="text" class="bot-dispname" value="${defaultName || 'Nextbot ' + idx}" required>
+      </p>
+
+      <p>
+        <label><b>Proximity Audio Interval: (change first number only)</b></label><br>
+        <input type="text" class="bot-interval" value="1.34-math.clamp(53.333333333333336*query.anger_level,0,1.5)" size="55" required>
+      </p>
+
+      <table border="0" cellpadding="4">
+        <tr>
+          <td>
+            <label><b>Texture (.png):</b></label><br>
+            <input type="file" class="f-img" accept=".png" required>
+          </td>
+          <td>
+            <label><b>Spawn Egg Texture (.png):</b></label><br>
+            <input type="file" class="f-egg" accept=".png" required>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <label><b>Proximity Audio (.ogg):</b></label><br>
+            <input type="file" class="f-beat" accept=".ogg" required>
+          </td>
+          <td>
+            <label><b>Jumpscare Audio (.ogg):</b></label><br>
+            <input type="file" class="f-attack" accept=".ogg" required>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    cardContainer.appendChild(box);
+
+    // Live preview update
+    const idInput = box.querySelector(`#subId_${idx}`);
+    idInput.addEventListener('input', () => {
+      const clean = sanitizeId(idInput.value);
+      box.querySelector(`#preview_${idx}`).textContent = `nextbot:${clean}`;
+    });
+  }
+
+  function dropCard(id) {
+    const activeCards = document.querySelectorAll('.bot-entry');
+    if (activeCards.length <= 1) {
+      alert("Error: Need at least 1 nextbot in the pack!");
+      return;
+    }
+    const target = document.getElementById(`botBox_${id}`);
+    if (target) target.remove();
+  }
+
+  function sanitizeId(str) {
+    return str.toLowerCase().trim().replace(/[^a-z0-9_]/g, '') || 'bot';
+  }
+
+  // Fast UUIDv4 generator
+  function makeUuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  async function compileMcAddon() {
+    const packTitle = document.getElementById('addonTitle').value.trim() || 'My Nextbot Pack';
+    const entries = document.querySelectorAll('.bot-entry');
+
+    if (!entries.length) {
+      console.warn("No bot entries found.");
+      return;
+    }
+
+    const botRegistry = [];
+
+    // Parse and validate fieldsets
+    for (let i = 0; i < entries.length; i++) {
+      const card = entries[i];
+      const rawId = card.querySelector('.bot-subid').value;
+      const subId = sanitizeId(rawId);
+      const name = card.querySelector('.bot-dispname').value.trim() || 'Nextbot';
+      const interval = card.querySelector('.bot-interval').value.trim();
+
+      const img = card.querySelector('.f-img').files[0];
+      const egg = card.querySelector('.f-egg').files[0];
+      const beat = card.querySelector('.f-beat').files[0];
+      const attack = card.querySelector('.f-attack').files[0];
+
+      if (!img || !egg || !beat || !attack) {
+        alert(`Missing file attachment(s) for "${name}". Check images and audio files.`);
+        return;
+      }
+
+      // Quick sanity check on file extensions
+      if (!img.name.endsWith('.png') || !egg.name.endsWith('.png')) {
+        alert(`Image files for "${name}" must be PNG format.`);
+        return;
+      }
+
+      botRegistry.push({ id: subId, name, interval, img, egg, beat, attack });
+    }
+
+    // Initialize JSZip archive
+    const zip = new JSZip();
+
+    // Pack manifests
+    const bpUuid = makeUuid();
+    const rpUuid = makeUuid();
+
+    const bpFolder = zip.folder("Behavior");
+    const rpFolder = zip.folder("Resource");
+
+    bpFolder.file("manifest.json", JSON.stringify({
+      format_version: 2,
+      header: {
+        description: `${packTitle} (Behavior)`,
+        name: `${packTitle} BP`,
+        uuid: bpUuid,
+        version: [1, 0, 0],
+        min_engine_version: [1, 21, 100]
+      },
+      modules: [{ description: "Data", type: "data", uuid: makeUuid(), version: [1, 0, 0] }]
+    }, null, 2));
+
+    rpFolder.file("manifest.json", JSON.stringify({
+      format_version: 2,
+      header: {
+        description: `${packTitle} (Resource)`,
+        name: `${packTitle} RP`,
+        uuid: rpUuid,
+        version: [1, 0, 0],
+        min_engine_version: [1, 21, 100]
+      },
+      modules: [{ description: "Resources", type: "resources", uuid: makeUuid(), version: [1, 0, 0] }]
+    }, null, 2));
+
+    // Shared model geometry & anim controller
+    rpFolder.file("models/entity/nextbot.json", JSON.stringify({
+      format_version: "1.12.0",
+      "minecraft:geometry": [{
+        description: { identifier: "geometry.nextbot", texture_width: 1, texture_height: 1, visible_bounds_width: 1, visible_bounds_height: 1, visible_bounds_offset: [0,0,0] },
+        bones: [{ name: "a", pivot: [0,0,0], locators: { baja: [0,0,0] } }]
+      }]
+    }, null, 2));
+
+    rpFolder.file("animation_controllers/nextbot_particle.json", JSON.stringify({
+      format_version: "1.19.0",
+      animation_controllers: {
+        "controller.animation.nextbot_particle": {
+          states: { default: { particle_effects: [{ effect: "charged_flames", locator: "baja" }] } }
+        }
+      }
+    }, null, 2));
+
+    // Mapping maps
+    const entitySoundMap = {};
+    const soundDefs = { "mob.nextbot.step": { category: "hostile", sounds: [] } };
+    const atlasData = {};
+    let langLines = "";
+
+    // Process each nextbot entry
+    botRegistry.forEach(bot => {
+      // Behavior Entity JSON
+      bpFolder.file(`entities/${bot.id}.json`, JSON.stringify({
+        format_version: "1.8.0",
+        "minecraft:entity": {
+          component_groups: { BruhFR: {}, YouAreSoLuckyBecauseIMadeTheTemplateHere: {}, "Don't Waste Your Time": {} },
+          description: { identifier: `nextbot:${bot.id}`, is_spawnable: true, is_summonable: true, is_experimental: false },
+          components: {
+            "minecraft:collision_box": { width: 0.5, height: 1.7 },
+            "minecraft:attack": { damage: 10000 },
+            "minecraft:navigation.walk": { is_amphibious: true, can_path_over_water: true, avoid_damage_blocks: false, can_walk: true, can_swim: true, can_open_doors: true, can_open_iron_doors: false, can_pass_doors: true, avoid_water: false },
+            "minecraft:underwater_movement": { value: 0.45 },
+            "minecraft:movement": { value: 0.45 },
+            "minecraft:movement.basic": { max_turn: 30 },
+            "minecraft:jump.static": { jump_power: 0.42 },
+            "minecraft:can_climb": {},
+            "minecraft:behavior.random_stroll": { priority: 6, speed_multiplier: 1, xz_dist: 53, y_dist: 56, interval: 0 },
+            "minecraft:ambient_sound_interval": {
+              value: 1.34, range: 0, event_name: "ambient",
+              event_names: [
+                { event_name: "angry", condition: "query.anger_level(this)>=80" },
+                { event_name: "agitated", condition: "query.anger_level(this)>=40" }
+              ]
+            },
+            "minecraft:heartbeat": { interval: bot.interval },
+            "minecraft:health": { value: 10000, max: 10000 },
+            "minecraft:follow_range": { value: 10000, max: 10000 },
+            "minecraft:fire_immune": true,
+            "minecraft:behavior.float": { priority: 0 },
+            "minecraft:behavior.nearest_attackable_target": {
+              priority: 2, must_see: false, reselect_targets: true, within_radius: 10000, must_see_forget_duration: 1,
+              entity_types: [{
+                filters: { any_of: [{ test: "is_family", subject: "other", value: "villager" }, { test: "is_family", subject: "other", value: "player" }] },
+                max_dist: 128, must_see: false
+              }],
+              must_reach: false
+            },
+            "minecraft:behavior.melee_attack": { priority: 3, speed_multiplier: 1, cooldown_time: 0, require_complete_path: false, track_target: true },
+            "minecraft:type_family": { family: ["monster", "nextbot"] },
+            "minecraft:physics": {},
+            "minecraft:scale": { value: 1 },
+            "minecraft:knockback_resistance": { value: 100, max: 100 },
+            "minecraft:annotation.open_door": {},
+            "minecraft:behavior.open_door": { close_door_after: true },
+            "minecraft:experience_reward": { on_death: "query.last_hit_by_player?0:0" },
+            "minecraft:fall_damage": { value: 0 },
+            "minecraft:damage_sensor": { triggers: { cause: "fall", deals_damage: false } }
+          }
+        }
+      }, null, 2));
+
+      // Client Entity JSON
+      rpFolder.file(`entity/${bot.id}.json`, JSON.stringify({
+        format_version: "1.10.0",
+        "minecraft:client_entity": {
+          description: {
+            identifier: `nextbot:${bot.id}`,
+            textures: { default: `textures/particles/nextbots/nextbot_particle_${bot.id}` },
+            spawn_egg: { texture: `egg_nextbot_${bot.id}` },
+            geometry: { default: "geometry.nextbot" },
+            particle_effects: { charged_flames: `nextbot:nextbot_particle_${bot.id}` },
+            animations: { look_at_target: "animation.common.look_at_target", move: "animation.blaze.move", flame: "controller.animation.nextbot_particle" },
+            materials: { body: "blaze_body", head: "blaze_head", default: "entity_alphatest" },
+            render_controllers: ["controller.render.blaze"],
+            scripts: { should_update_bones_and_effects_offscreen: true, animate: ["flame"] }
+          }
+        }
+      }, null, 2));
+
+      // Particle definition
+      rpFolder.file(`particles/nextbot_particle_${bot.id}.json`, JSON.stringify({
+        format_version: "1.26.0",
+        particle_effect: {
+          description: {
+            identifier: `nextbot:nextbot_particle_${bot.id}`,
+            basic_render_parameters: { material: "particles_alpha", texture: `textures/particles/nextbots/nextbot_particle_${bot.id}` }
+          },
+          components: {
+            "minecraft:emitter_initialization": { creation_expression: "v.height=2;v.width=2;" },
+            "minecraft:emitter_local_space": { position: true, rotation: false },
+            "minecraft:emitter_rate_instant": { num_particles: 1 },
+            "minecraft:emitter_lifetime_expression": { activation_expression: 1, expiration_expression: "!q.is_alive" },
+            "minecraft:emitter_shape_point": { offset: [0, -1.875, 0] },
+            "minecraft:particle_lifetime_expression": { max_lifetime: 999999 },
+            "minecraft:particle_appearance_billboard": {
+              size: ["v.width", "v.height"],
+              facing_camera_mode: "rotate_xyz",
+              uv: { texture_width: 1, texture_height: 1, flipbook: { base_UV: [0,0], size_UV: [1,1], step_UV: [0,1], frames_per_second: 1, max_frame: 1, loop: true } }
+            }
+          }
+        }
+      }, null, 2));
+
+      // Texture Set
+      rpFolder.file(`textures/particles/nextbots/nextbot_particle_${bot.id}.texture_set.json`, JSON.stringify({
+        format_version: "1.16.100",
+        "minecraft:texture_set": {
+          color: `nextbot_particle_${bot.id}`,
+          metalness_emissive_roughness: [0, 25, 255]
+        }
+      }, null, 2));
+
+      // Map definitions
+      entitySoundMap[`nextbot:${bot.id}`] = {
+        volume: 1.0, pitch: 1.0,
+        events: { heartbeat: `mob.nextbot_${bot.id}.heartbeat`, attack: `mob.nextbot_${bot.id}.attack`, step: "mob.nextbot.step" }
+      };
+
+      soundDefs[`mob.nextbot_${bot.id}.heartbeat`] = { category: "hostile", sounds: [`sounds/mob/nextbot_${bot.id}/heartbeat`] };
+      soundDefs[`mob.nextbot_${bot.id}.attack`] = { category: "hostile", sounds: [`sounds/mob/nextbot_${bot.id}/attack`] };
+
+      atlasData[`egg_nextbot_${bot.id}`] = { textures: `textures/items/egg_nextbot_${bot.id}` };
+
+      langLines += `item.spawn_egg.entity.nextbot:${bot.id}.name=${bot.name} Spawn Egg\nentity.nextbot:${bot.id}.name=${bot.name}\n`;
+
+      // Save files into zip structure
+      rpFolder.file(`textures/particles/nextbots/nextbot_particle_${bot.id}.png`, bot.img);
+      rpFolder.file(`textures/items/egg_nextbot_${bot.id}.png`, bot.egg);
+      rpFolder.file(`sounds/mob/nextbot_${bot.id}/heartbeat.ogg`, bot.beat);
+      rpFolder.file(`sounds/mob/nextbot_${bot.id}/attack.ogg`, bot.attack);
+    });
+
+    // Write global RP config files
+    rpFolder.file("sounds.json", JSON.stringify({ entity_sounds: { entities: entitySoundMap } }, null, 2));
+    rpFolder.file("sounds/sound_definitions.json", JSON.stringify(soundDefs, null, 2));
+    rpFolder.file("textures/item_texture.json", JSON.stringify({
+      resource_pack_name: "vanilla",
+      texture_name: "atlas.items",
+      texture_data: atlasData
+    }, null, 2));
+    rpFolder.file("texts/en_US.lang", langLines);
+
+    // Build and save zip blob
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const fileSlug = packTitle.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    saveAs(zipBlob, `${fileSlug}.mcaddon`);
+  }
+</script>
+</body>
+</html>
