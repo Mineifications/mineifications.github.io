@@ -57,11 +57,6 @@
 
     box.innerHTML = `
       <legend><b>Nextbot #${idx}</b></legend>
-
-      <div style="margin: 10px 0;">
-        <img id="imgPreview_${idx}" style="max-width: 120px; max-height: 120px; display: none; border: 1px solid #777; border-radius: 4px; object-fit: contain;" alt="Preview">
-      </div>
-
       <p style="text-align: right;">
         <button type="button" onclick="dropCard(${idx})">Delete</button>
       </p>
@@ -86,7 +81,7 @@
         <tr>
           <td>
             <label><b>Texture (.png):</b></label><br>
-            <input type="file" class="f-img" accept=".png" onchange="previewImage(this, ${idx})" required>
+            <input type="file" class="f-img" accept=".png" required>
           </td>
           <td>
             <label><b>Spawn Egg Texture (.png):</b></label><br>
@@ -108,28 +103,12 @@
 
     cardContainer.appendChild(box);
 
-    // Live identifier preview update
+    // Live preview update
     const idInput = box.querySelector(`#subId_${idx}`);
     idInput.addEventListener('input', () => {
       const clean = sanitizeId(idInput.value);
       box.querySelector(`#preview_${idx}`).textContent = `nextbot:${clean}`;
     });
-  }
-
-  // Global helper function to trigger the preview directly
-  function previewImage(input, idx) {
-    const preview = document.getElementById(`imgPreview_${idx}`);
-    if (input.files && input.files[0]) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        preview.src = e.target.result;
-        preview.style.display = 'block';
-      };
-      reader.readAsDataURL(input.files[0]);
-    } else {
-      preview.src = '';
-      preview.style.display = 'none';
-    }
   }
 
   function dropCard(id) {
