@@ -31,7 +31,6 @@
   </form>
 
 <script>
-  // Quick counter for DOM element IDs
   let totalBots = 0;
 
   // DOM refs
@@ -39,7 +38,6 @@
   const addBtn = document.getElementById('addBtn');
   const exportBtn = document.getElementById('exportBtn');
 
-  // Add initial card
   window.addEventListener('DOMContentLoaded', () => {
     spawnBotBlock("nextbot", "My Nextbot");
   });
@@ -110,7 +108,6 @@
 
     cardContainer.appendChild(box);
 
-    // Live identifier preview update
     const idInput = box.querySelector(`#subId_${idx}`);
     idInput.addEventListener('input', () => {
       const clean = sanitizeId(idInput.value);
@@ -118,7 +115,6 @@
     });
   }
 
-  // Helper function to handle image previews
   function previewImage(input, idx) {
     const preview = document.getElementById(`imgPreview_${idx}`);
     if (input.files && input.files[0]) {
@@ -134,7 +130,6 @@
     }
   }
 
-  // Helper function to handle audio previews
   function previewAudio(input, targetId) {
     const player = document.getElementById(targetId);
     if (input.files && input.files[0]) {
@@ -160,7 +155,7 @@
     return str.toLowerCase().trim().replace(/[^a-z0-9_]/g, '') || 'bot';
   }
 
-  // Fast UUIDv4 generator
+  // UUIDv4 generator
   function makeUuid() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = Math.random() * 16 | 0;
@@ -179,7 +174,6 @@
 
     const botRegistry = [];
 
-    // Parse and validate fieldsets
     for (let i = 0; i < entries.length; i++) {
       const card = entries[i];
       const rawId = card.querySelector('.bot-subid').value;
@@ -206,10 +200,8 @@
       botRegistry.push({ id: subId, name, interval, img, egg, beat, attack });
     }
 
-    // Initialize JSZip archive
     const zip = new JSZip();
 
-    // Pack manifests
     const bpUuid = makeUuid();
     const rpUuid = makeUuid();
 
@@ -240,7 +232,6 @@
       modules: [{ description: "Resources", type: "resources", uuid: makeUuid(), version: [1, 0, 0] }]
     }, null, 2));
 
-    // Shared model geometry & anim controller
     rpFolder.file("models/entity/nextbot.json", JSON.stringify({
       format_version: "1.12.0",
       "minecraft:geometry": [{
@@ -258,13 +249,11 @@
       }
     }, null, 2));
 
-    // Mapping maps
     const entitySoundMap = {};
     const soundDefs = { "mob.nextbot.step": { category: "hostile", sounds: [] } };
     const atlasData = {};
     let langLines = "";
 
-    // Process each nextbot entry
     botRegistry.forEach(bot => {
       // Behavior Entity JSON
       bpFolder.file(`entities/${bot.id}.json`, JSON.stringify({
@@ -316,7 +305,6 @@
         }
       }, null, 2));
 
-      // Client Entity JSON
       rpFolder.file(`entity/${bot.id}.json`, JSON.stringify({
         format_version: "1.10.0",
         "minecraft:client_entity": {
@@ -334,7 +322,6 @@
         }
       }, null, 2));
 
-      // Particle definition
       rpFolder.file(`particles/nextbot_particle_${bot.id}.json`, JSON.stringify({
         format_version: "1.26.0",
         particle_effect: {
@@ -367,7 +354,6 @@
         }
       }, null, 2));
 
-      // Map definitions
       entitySoundMap[`nextbot:${bot.id}`] = {
         volume: 1.0, pitch: 1.0,
         events: { heartbeat: `mob.nextbot_${bot.id}.heartbeat`, attack: `mob.nextbot_${bot.id}.attack`, step: "mob.nextbot.step" }
@@ -380,14 +366,12 @@
 
       langLines += `item.spawn_egg.entity.nextbot:${bot.id}.name=${bot.name} Spawn Egg\nentity.nextbot:${bot.id}.name=${bot.name}\n`;
 
-      // Save files into zip structure
       rpFolder.file(`textures/particles/nextbots/nextbot_particle_${bot.id}.png`, bot.img);
       rpFolder.file(`textures/items/egg_nextbot_${bot.id}.png`, bot.egg);
       rpFolder.file(`sounds/mob/nextbot_${bot.id}/heartbeat.ogg`, bot.beat);
       rpFolder.file(`sounds/mob/nextbot_${bot.id}/attack.ogg`, bot.attack);
     });
 
-    // Write global RP config files
     rpFolder.file("sounds.json", JSON.stringify({ entity_sounds: { entities: entitySoundMap } }, null, 2));
     rpFolder.file("sounds/sound_definitions.json", JSON.stringify(soundDefs, null, 2));
     rpFolder.file("textures/item_texture.json", JSON.stringify({
@@ -397,7 +381,6 @@
     }, null, 2));
     rpFolder.file("texts/en_US.lang", langLines);
 
-    // Build and save zip blob
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const fileSlug = packTitle.toLowerCase().replace(/[^a-z0-9_]/g, '_');
     saveAs(zipBlob, `${fileSlug}.mcaddon`);
