@@ -57,6 +57,11 @@
 
     box.innerHTML = `
       <legend><b>Nextbot #${idx}</b></legend>
+
+      <div style="margin: 10px 0;">
+        <img id="imgPreview_${idx}" style="max-width: 120px; max-height: 120px; display: none; border: 1px solid #777; border-radius: 4px; object-fit: contain;" alt="Preview">
+      </div>
+
       <p style="text-align: right;">
         <button type="button" onclick="dropCard(${idx})">Delete</button>
       </p>
@@ -81,7 +86,7 @@
         <tr>
           <td>
             <label><b>Texture (.png):</b></label><br>
-            <input type="file" class="f-img" accept=".png" required>
+            <input type="file" class="f-img" accept=".png" onchange="previewImage(this, ${idx})" required>
           </td>
           <td>
             <label><b>Spawn Egg Texture (.png):</b></label><br>
@@ -91,11 +96,13 @@
         <tr>
           <td>
             <label><b>Proximity Audio (.ogg):</b></label><br>
-            <input type="file" class="f-beat" accept=".ogg" required>
+            <input type="file" class="f-beat" accept=".ogg" onchange="previewAudio(this, 'beatAudio_${idx}')" required><br>
+            <audio id="beatAudio_${idx}" controls style="display: none; margin-top: 6px; max-width: 200px; height: 32px;"></audio>
           </td>
           <td>
             <label><b>Jumpscare Audio (.ogg):</b></label><br>
-            <input type="file" class="f-attack" accept=".ogg" required>
+            <input type="file" class="f-attack" accept=".ogg" onchange="previewAudio(this, 'attackAudio_${idx}')" required><br>
+            <audio id="attackAudio_${idx}" controls style="display: none; margin-top: 6px; max-width: 200px; height: 32px;"></audio>
           </td>
         </tr>
       </table>
@@ -103,12 +110,40 @@
 
     cardContainer.appendChild(box);
 
-    // Live preview update
+    // Live identifier preview update
     const idInput = box.querySelector(`#subId_${idx}`);
     idInput.addEventListener('input', () => {
       const clean = sanitizeId(idInput.value);
       box.querySelector(`#preview_${idx}`).textContent = `nextbot:${clean}`;
     });
+  }
+
+  // Helper function to handle image previews
+  function previewImage(input, idx) {
+    const preview = document.getElementById(`imgPreview_${idx}`);
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(input.files[0]);
+    } else {
+      preview.src = '';
+      preview.style.display = 'none';
+    }
+  }
+
+  // Helper function to handle audio previews
+  function previewAudio(input, targetId) {
+    const player = document.getElementById(targetId);
+    if (input.files && input.files[0]) {
+      player.src = URL.createObjectURL(input.files[0]);
+      player.style.display = 'block';
+    } else {
+      player.src = '';
+      player.style.display = 'none';
+    }
   }
 
   function dropCard(id) {
