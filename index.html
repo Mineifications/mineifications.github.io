@@ -57,6 +57,11 @@
 
     box.innerHTML = `
       <legend><b>Nextbot #${idx}</b></legend>
+
+      <div style="margin: 8px 0;">
+        <img id="imgPreview_${idx}" style="max-width: 150px; max-height: 150px; display: none; border: 1px solid #ccc; border-radius: 4px; padding: 2px;" alt="Nextbot Texture Preview">
+      </div>
+
       <p style="text-align: right;">
         <button type="button" onclick="dropCard(${idx})">Delete</button>
       </p>
@@ -103,11 +108,30 @@
 
     cardContainer.appendChild(box);
 
-    // Live preview update
+    // Live identifier preview update
     const idInput = box.querySelector(`#subId_${idx}`);
     idInput.addEventListener('input', () => {
       const clean = sanitizeId(idInput.value);
       box.querySelector(`#preview_${idx}`).textContent = `nextbot:${clean}`;
+    });
+
+    // Live texture image preview handler
+    const imgInput = box.querySelector('.f-img');
+    const imgPreview = box.querySelector(`#imgPreview_${idx}`);
+
+    imgInput.addEventListener('change', () => {
+      const file = imgInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imgPreview.src = e.target.result;
+          imgPreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        imgPreview.src = '';
+        imgPreview.style.display = 'none';
+      }
     });
   }
 
